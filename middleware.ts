@@ -1,30 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 
-const ADMIN_PATH = '/admin';
-function hashAdminKey(k: string) {
-  return crypto.createHash('sha256').update(k).digest('hex');
+// WebCrypto (Edge) — SHA-256 hex
+async function sha256Hex(input: string): Promise<string> {
+  const enc = new TextEncoder();
+  const data = enc.encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-export function middleware(req: NextRequest) {
+const ADMIN_BASE = '/admin';
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Solo le pagine /admin sono protette (escluso /admin/login)
-  if (pathname.startsWith(ADMIN_PATH) && pathname !== `${ADMIN_PATH}/login`) {
-    const token = req.cookies.get('admin_token')?.value || '';
-    const adminKey = process.env.ADMIN_KEY || '';
-    const expected = adminKey ? hashAdminKey(adminKey) : '';
-    if (!token || !expected || token !== expected) {
-      const url = req.nextUrl.clone();
-      url.pathname = `${ADMIN_PATH}/login`;
-      url.searchParams.set('next', pathname);
-      return NextResponse.redirect(url);
-    }
+  // Non proteggere la pagina di login
+  if (!pathname.startsWith(ADMIN_BASE) || pathname === `${ADMIN_BASE}/login`) {
+    return NextResponse.next();
   }
+
+  const cookieToken = req.cookies.get('admin_token')?.value || '';
+  const adminKey = process.env.ADMIN_KEY || '';
+
+  // Se manca ADMIN_KEY evitiamo crash e mandiamo alla login
+  if (!adminKey) {
+    const url = req.nextUrl.clone();
+    url.pathname = `${ADMIN_BASE}/login`;
+    url.searchParams.set('next', pathname);
+    return NextResponse.redirect(url);
+  }
+
+  const expected = await sha256Hex(adminKey);
+
+  if (cookieToken !== expected) {
+    const url = req.nextUrl.clone();
+    url.pathname = `${ADMIN_BASE}/login`;
+    url.searchParams.set('next', pathname);
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 
-// Applica il middleware a tutto ma è “no-op” tranne /admin*
 export const config = {
   matcher: ['/admin/:path*'],
 };
