@@ -10,11 +10,24 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
+
+    /* ✅ Percorsi base e alias */
     "baseUrl": ".",
     "paths": {
       "@/*": ["*"]
-    }
+    },
+
+    /* ✅ Migliora supporto import dinamici e async */
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "noEmit": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
