@@ -1,106 +1,62 @@
 'use client';
 
 import React from 'react';
-export default function AreaSpark({ points = [] as number[] }) {
-  return <div style={{height:40, width:'100%', opacity:.6}}>spark {points.join(',')}</div>;
-}
 
+/** Punto opzionale (se vuoi passare coppie x/y) */
 export type SparkPoint = { x: string; y: number };
 
 type Props = {
-  data: SparkPoint[];
+  /** Serie numerica semplice (es. [3,5,2,8]) */
+  data?: number[];
+  /** Serie come coppie x/y (usa solo y per il grafico) */
+  points?: SparkPoint[];
+  width?: number;
   height?: number;
   strokeWidth?: number;
-  className?: string;
 };
 
-/**
- * AreaSpark: mini area chart responsive (SVG) senza dipendenze.
- * Accetta data come [{x, y}], riempie con gradiente e disegna linea.
- */
 export default function AreaSpark({
   data,
-  height = 120,
+  points,
+  width = 140,
+  height = 36,
   strokeWidth = 2,
-  className,
 }: Props) {
-  const { path, area, minY, maxY } = useMemo(() => {
-    if (!data?.length) {
-      return { path: '', area: '', minY: 0, maxY: 1 };
-    }
+  // Normalizza i valori: preferisci `data`, altrimenti prendi y da `points`
+  const values: number[] =
+    (data && data.length ? data : points?.map(p => p.y)) ?? [];
 
-    const ys = data.map((d) => (Number.isFinite(d.y) ? d.y : 0));
-    let minY = Math.min(...ys);
-    let maxY = Math.max(...ys);
-    if (minY === maxY) {
-      // evita divisione per zero: allarga leggermente il range
-      minY = minY - 1;
-      maxY = maxY + 1;
-    }
-
-    const padX = 8;
-    const padY = 8;
-    const w = Math.max(1, data.length - 1); // rapporto per normalizzare X
-    const H = height - padY * 2;
-
-    const scaleX = (i: number) =>
-      padX + (i / w) * (100 - padX * 2); // usiamo un viewBox 0..100 per la larghezza
-    const scaleY = (v: number) =>
-      padY + (1 - (v - minY) / (maxY - minY)) * H;
-
-    let d = '';
-    data.forEach((p, i) => {
-      const x = scaleX(i);
-      const y = scaleY(p.y);
-      d += i === 0 ? `M ${x},${y}` : ` L ${x},${y}`;
-    });
-
-    const firstX = scaleX(0);
-    const lastX = scaleX(data.length - 1);
-    const baseline = padY + H;
-
-    const area = `${d} L ${lastX},${baseline} L ${firstX},${baseline} Z`;
-
-    return { path: d, area, minY, maxY };
-  }, [data, height]);
-
-  if (!data?.length) {
+  if (!values.length) {
     return (
-      <div
-        className={`flex h-[${height}px] items-center justify-center rounded-2xl border text-sm text-gray-500 ${className || ''}`}
-      >
-        No data
-      </div>
+      <svg width={width} height={height} aria-hidden="true" />
     );
   }
 
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  // Converte i valori in coordinate SVG
+  const stepX = values.length > 1 ? width / (values.length - 1) : width;
+  const coords = values.map((v, i) => {
+    const x = i * stepX;
+    // y invertita (0 in alto), con padding di 1px
+    const y = height - ((v - min) / range) * (height - 2) - 1;
+    return [x, y] as const;
+  });
+
+  // path linea
+  const dLine =
+    'M ' + coords.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join(' L ');
+
+  // path area (sotto la linea)
+  const dArea =
+    `${dLine} L ${width} ${height} L 0 ${height} Z`;
+
   return (
-    <div className={className}>
-      <svg
-        viewBox={`0 0 100 ${height}`}
-        role="img"
-        aria-label={`Trend min ${minY} max ${maxY}`}
-        className="w-full"
-      >
-        <defs>
-          <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
-          </linearGradient>
-        </defs>
-
-        {/* area */}
-        <path d={area} fill="url(#sparkFill)" vectorEffect="non-scaling-stroke" />
-
-        {/* line */}
-        <path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-    </div>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <path d={dArea} fill="currentColor" opacity="0.12" />
+      <path d={dLine} fill="none" stroke="currentColor" strokeWidth={strokeWidth} />
+    </svg>
   );
 }
