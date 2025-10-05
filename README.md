@@ -25,3 +25,5 @@ SHOPIFY_API_VERSION=2024-07
 ## Dev
 npm install
 npm run dev
+
+Deployed 2025-10-06T00:42:29.2014850+02:00
