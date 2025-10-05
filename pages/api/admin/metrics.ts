@@ -1,14 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabaseAdmin } from '../../../lib/supabaseServer';
+import { supabaseAnon } from '../../../lib/supabaseServer'; // ✅ relativo
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion) || '2023-10-16',
+  // niente apiVersion per evitare errori TS, oppure '2023-10-16'
 });
 
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
-    // 1) Supabase: conteggio generazioni ultimi 30 giorni
+    // Supabase: counts ultimi 30 giorni
     const supa = supabaseAnon();
     const { data: counts, error: e1 } = await supa
       .from('events')
@@ -21,11 +21,11 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     const genCount = (counts || []).find(r => r.kind === 'generate')?.count || 0;
     const pubCount = (counts || []).find(r => r.kind === 'publish')?.count || 0;
 
-    // 2) Stripe: abbonamenti attivi
+    // Stripe: active subs
     const subs = await stripe.subscriptions.list({ status: 'active', limit: 100 });
     const activeSubs = subs.data.length;
 
-    // 3) Shopify: ultimi 5 prodotti (id, title, updated_at)
+    // Shopify: ultimi 5 prodotti
     const v = process.env.SHOPIFY_API_VERSION || '2025-01';
     const shop = process.env.SHOPIFY_SHOP;
     const token = process.env.SHOPIFY_ADMIN_TOKEN;
