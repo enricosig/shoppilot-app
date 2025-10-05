@@ -1,6 +1,15 @@
 'use client';
 
 import React from 'react';
+export default function KpiCard({ title, value, footer }: {title:string; value:string; footer?:string}) {
+  return (
+    <div style={{border:'1px solid #eee', borderRadius:12, padding:16}}>
+      <div style={{fontSize:12, color:'#666'}}>{title}</div>
+      <div style={{fontSize:24, fontWeight:700}}>{value}</div>
+      {footer && <div style={{fontSize:12, color:'#999'}}>{footer}</div>}
+    </div>
+  );
+}
 
 type KpiCardProps = {
   title: string;
