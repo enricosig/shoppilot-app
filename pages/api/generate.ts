@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseServer';
+import { supabaseAdmin } from '../../lib/supabaseServer'; // ✅ relativo
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await r.json();
     const text = data.choices?.[0]?.message?.content || 'No output';
 
-    // 🔸 traccia evento
+    // track evento
     try {
       const supa = supabaseAdmin();
       await supa.from('events').insert({ kind: 'generate' });
