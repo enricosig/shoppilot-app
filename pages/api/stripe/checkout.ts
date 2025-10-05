@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 // Non specifica apiVersion per evitare errori di tipo
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Recupera il prezzo e l’URL dell’app
