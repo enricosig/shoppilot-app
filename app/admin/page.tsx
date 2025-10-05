@@ -1,91 +1,185 @@
-import type { Metadata } from 'next';
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
+import KpiCard from '@/components/KpiCard';
+import AreaSpark from '@/components/AreaSpark';
 
-import AreaSpark from '../../components/AreaSpark';
-
-export const metadata: Metadata = {
-  title: 'Shoppilot — Admin',
-  description: 'Metrics and events',
+type DailyPoint = { date: string; value: number };
+type Metrics = {
+  revenue?: number;
+  orders?: number;
+  aov?: number;
+  conversion?: number;
+  series?: DailyPoint[];       // per sparkline
 };
 
-async function fetchJSON(path: string) {
-  const res = await fetch(path, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  return res.json();
-}
+type EventsRow = Record<string, string | number | null | undefined>;
 
-export default async function AdminPage({ searchParams }: { searchParams: { days?: string } }) {
-  const days = Number(searchParams?.days ?? 30);
-  const d = Math.max(1, Math.min(days || 30, 365));
+const DAYS_CHOICES = [7, 30, 90] as const;
 
-  // Server-side fetch (no-store) degli stessi endpoint pages/api/*
-  const data = await fetchJSON(`${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/admin/metrics?days=${d}`);
-  const m = data?.metrics ?? {};
-  const totalsGenerate = m?.totals?.generate ?? 0;
-  const totalsPublish  = m?.totals?.publish ?? 0;
-  const activeSubs     = m?.stripe_active_subscriptions ?? 0;
-  const series         = m?.series30d ?? [];
-  const products       = m?.shopify_recent_products ?? [];
+export default function AdminPage() {
+  const [days, setDays] = useState<(typeof DAYS_CHOICES)[number]>(30);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const mkUrl = (n: number) => `/admin?days=${n}`;
+  // -------- Fetch METRICS --------
+  useEffect(() => {
+    let abort = false;
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch(`/api/admin/metrics?days=${days}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`metrics ${res.status}`);
+        const data = await res.json();
+        if (!abort) setMetrics(data as Metrics);
+      } catch (e: any) {
+        if (!abort) setErr(e?.message || 'metrics error');
+      } finally {
+        if (!abort) setLoading(false);
+      }
+    })();
+    return () => { abort = true; };
+  }, [days]);
+
+  // -------- CSV EXPORT --------
+  const onExportCsv = async () => {
+    try {
+      const res = await fetch(`/api/admin/events?days=${days}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`events ${res.status}`);
+      const rows = (await res.json()) as EventsRow[];
+
+      if (!rows?.length) {
+        alert('Nessun dato da esportare');
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      const csv = [
+        headers.join(','),
+        ...rows.map(r =>
+          headers
+            .map(h => {
+              const v = r[h];
+              // CSV-safe
+              const s = v == null ? '' : String(v);
+              return `"${s.replaceAll('"', '""')}"`;
+            })
+            .join(',')
+        ),
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shoppilot-events-${days}d.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(e?.message || 'CSV export error');
+    }
+  };
+
+  const series = useMemo<DailyPoint[]>(
+    () => metrics?.series ?? [],
+    [metrics]
+  );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Shoppilot Admin</h1>
-        <div className="flex gap-2">
-          <div className="flex rounded-xl border overflow-hidden">
-            {[7,30,90].map((r) => (
-              <Link key={r} href={mkUrl(r)}
-                className={`px-3 py-2 text-sm ${d===r ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-50'}`}>
-                {r}d
-              </Link>
-            ))}
-          </div>
-          <Link href={mkUrl(d)} className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">Refresh</Link>
-          <a
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-            href={`/api/admin/events?days=${d}&format=csv`}
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      {/* Header */}
+      <header className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link href="/" className="text-xl font-semibold">Shoppilot</Link>
+          <span className="rounded-full bg-black/80 px-2 py-0.5 text-xs text-white">Admin</span>
+        </div>
+
+        <nav className="flex items-center gap-3">
+          <Link href="/billing" className="text-sm underline">Billing</Link>
+          <Link href="/privacy" className="text-sm underline">Privacy</Link>
+          <button
+            onClick={() => setDays(d => d)} // noop, ma mantiene il tasto al layout
+            className="rounded-md border px-3 py-1 text-sm"
+            disabled={loading}
+            title="Refresh"
+          >
+            ↻ Refresh
+          </button>
+          <button
+            onClick={onExportCsv}
+            className="rounded-md bg-black px-3 py-1 text-sm text-white hover:bg-black/90"
+            disabled={loading}
           >
             Export CSV
-          </a>
-        </div>
+          </button>
+        </nav>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Kpi label={`Generations (${d}d)`} value={totalsGenerate} />
-        <Kpi label={`Publishes (${d}d)`} value={totalsPublish} />
-        <Kpi label="Stripe Active Subs" value={activeSubs} />
+      {/* Filtri */}
+      <div className="mb-5 flex gap-2">
+        {DAYS_CHOICES.map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            className={`rounded-md border px-3 py-1 text-sm ${
+              d === days ? 'bg-black text-white' : 'hover:bg-black/5'
+            }`}
+            disabled={loading}
+          >
+            {d}d
+          </button>
+        ))}
       </div>
 
-      <AreaSpark data={series} />
-
-      <div className="rounded-2xl shadow-sm border p-4 bg-white">
-        <div className="text-sm text-gray-500 mb-2">Recent Shopify products</div>
-        <div className="divide-y">
-          {products.length === 0 && <div className="text-sm text-gray-400">No products or Shopify env missing.</div>}
-          {products.map((p: any) => (
-            <div key={p.id} className="py-2 flex items-center justify-between">
-              <div className="text-sm">
-                <div className="font-medium">{p.title}</div>
-                <div className="text-gray-500">{p.handle}</div>
-              </div>
-              <div className="text-xs text-gray-500">{new Date(p.updated_at).toLocaleString()}</div>
-            </div>
-          ))}
+      {/* Stato */}
+      {err && (
+        <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {err}
         </div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-function Kpi({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
-  return (
-    <div className="rounded-2xl shadow-sm border p-4 bg-white">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="mt-1 text-3xl font-semibold">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-gray-400">{hint}</div> : null}
+      {/* KPI */}
+      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Revenue"
+          value={metrics?.revenue ?? 0}
+          loading={loading}
+          format="currency"
+        />
+        <KpiCard
+          title="Orders"
+          value={metrics?.orders ?? 0}
+          loading={loading}
+          format="integer"
+        />
+        <KpiCard
+          title="AOV"
+          value={metrics?.aov ?? 0}
+          loading={loading}
+          format="currency"
+        />
+        <KpiCard
+          title="Conversion"
+          value={metrics?.conversion ?? 0}
+          loading={loading}
+          format="percent"
+        />
+      </section>
+
+      {/* Sparkline / Trend */}
+      <section className="rounded-2xl border p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-medium">Revenue trend (last {days}d)</h3>
+          {loading && <span className="text-sm text-gray-500">loading…</span>}
+        </div>
+        <AreaSpark
+          data={series.map(p => ({ x: p.date, y: p.value }))}
+          height={120}
+        />
+      </section>
     </div>
   );
 }
