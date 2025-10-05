@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../lib/supabaseServer'; // ✅ relativo
+import { sql } from '../../lib/db'; // usa @vercel/postgres (lib/db.ts)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -11,10 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
@@ -24,25 +21,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         temperature: 0.7,
       }),
     });
-
-    if (!r.ok) {
-      const txt = await r.text();
-      return res.status(500).send(`OpenAI error: ${txt}`);
-    }
+    if (!r.ok) return res.status(500).send(`OpenAI error: ${await r.text()}`);
 
     const data = await r.json();
     const text = data.choices?.[0]?.message?.content || 'No output';
 
-    // track evento
-    try {
-      const supa = supabaseAdmin();
-      await supa.from('events').insert({ kind: 'generate' });
-    } catch {}
+    // log evento (best-effort)
+    try { await sql`insert into events(kind) values('generate')`; } catch {}
 
     res.status(200).send(text);
   } catch (e: any) {
     res.status(500).send(e?.message || 'error');
   }
 }
-
-
