@@ -59,3 +59,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .json({ ok: false, error: e?.message || 'error' });
   }
 }
+

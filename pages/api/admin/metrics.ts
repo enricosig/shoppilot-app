@@ -50,3 +50,4 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ ok: false, error: e?.message || 'metrics error' });
   }
 }
+
