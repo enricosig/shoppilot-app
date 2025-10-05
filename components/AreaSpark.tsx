@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
+export default function AreaSpark({ points = [] as number[] }) {
+  return <div style={{height:40, width:'100%', opacity:.6}}>spark {points.join(',')}</div>;
+}
 
 export type SparkPoint = { x: string; y: number };
 
