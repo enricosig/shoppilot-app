@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 
 // Usa la versione API da ENV o fallback compatibile con il tuo SDK
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion) || '2023-10-16',
+  apiVersion: '2023-10-16',
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
