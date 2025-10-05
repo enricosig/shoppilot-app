@@ -1,7 +1,5 @@
 import React from 'react';
-
 type Props = { label: string; value: number | string; hint?: string; };
-
 export default function KpiCard({ label, value, hint }: Props) {
   return (
     <div className="rounded-2xl shadow-sm border p-4 bg-white">

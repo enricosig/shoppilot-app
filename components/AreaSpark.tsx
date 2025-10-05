@@ -1,8 +1,6 @@
 'use client';
 import React from 'react';
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
-} from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
 type Row = { day: string; generate: number; publish: number; };
 export default function AreaSpark({ data }: { data: Row[] }) {
@@ -10,7 +8,6 @@ export default function AreaSpark({ data }: { data: Row[] }) {
     ...r,
     day: new Date(r.day).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }),
   }));
-
   return (
     <div className="rounded-2xl shadow-sm border p-4 bg-white h-80">
       <div className="text-sm text-gray-500 mb-2">30 days activity</div>

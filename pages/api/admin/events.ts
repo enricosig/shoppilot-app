@@ -15,7 +15,7 @@ function toCSV(rows: any[]) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const days = Math.max(1, Math.min(Number(req.query.days ?? 30), 365)); // 1..365
+    const days = Math.max(1, Math.min(Number(req.query.days ?? 30), 365));
     const { rows } = await sql/*sql*/`
       select id, kind, created_at
       from events
@@ -23,16 +23,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       order by created_at desc
       limit 5000
     `;
-
     const format = (req.query.format || 'json').toString();
     if (format === 'csv') {
       const csv = toCSV(rows);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="events_${days}d.csv"`);
+      res.setHeader('Content-Disposition', 'attachment; filename="events_'+days+'d.csv"');
       return res.status(200).send(csv);
     }
     return res.status(200).json({ ok: true, days, count: rows.length, events: rows });
-  } catch (e: any) {
-    return res.status(500).json({ ok: false, error: e?.message || 'events error' });
+  } catch (e:any) {
+    return res.status(500).json({ ok:false, error: e?.message || 'events error' });
   }
 }
