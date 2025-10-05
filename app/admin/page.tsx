@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
-const AreaSpark = dynamic(() => import('@/components/AreaSpark'), { ssr: false });
+import AreaSpark from '../../components/AreaSpark';
 
 export const metadata: Metadata = {
   title: 'Shoppilot — Admin',
