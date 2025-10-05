@@ -1,43 +1,53 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabaseAnon } from '../../../lib/supabaseServer'; // ✅ relativo
+import { sql } from '../../../lib/db'; // usa il tuo helper che re-exporta `sql` da @vercel/postgres
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  // niente apiVersion per evitare errori TS, oppure '2023-10-16'
-});
+// Niente apiVersion: evitiamo mismatch con i tipi
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
-    // Supabase: counts ultimi 30 giorni
-    const supa = supabaseAnon();
-    const { data: counts, error: e1 } = await supa
-      .from('events')
-      .select('kind, count:count(*)')
-      .gte('created_at', new Date(Date.now() - 30*24*60*60*1000).toISOString())
-      .group('kind');
+    // --- 1) Postgres: conteggi ultimi 30 giorni
+    const { rows: countRows } = await sql/*sql*/`
+      select kind, count(*)::int as count
+      from events
+      where created_at >= now() - interval '30 days'
+      group by kind
+    `;
+    const genCount = countRows.find(r => r.kind === 'generate')?.count ?? 0;
+    const pubCount = countRows.find(r => r.kind === 'publish')?.count ?? 0;
 
-    if (e1) throw e1;
-
-    const genCount = (counts || []).find(r => r.kind === 'generate')?.count || 0;
-    const pubCount = (counts || []).find(r => r.kind === 'publish')?.count || 0;
-
-    // Stripe: active subs
+    // --- 2) Stripe: abbonamenti attivi
     const subs = await stripe.subscriptions.list({ status: 'active', limit: 100 });
     const activeSubs = subs.data.length;
 
-    // Shopify: ultimi 5 prodotti
+    // --- 3) Shopify: ultimi 5 prodotti (id, title, updated_at, handle)
     const v = process.env.SHOPIFY_API_VERSION || '2025-01';
     const shop = process.env.SHOPIFY_SHOP;
     const token = process.env.SHOPIFY_ADMIN_TOKEN;
-    const r = await fetch(`https://${shop}.myshopify.com/admin/api/${v}/products.json?limit=5&fields=id,title,updated_at,handle`, {
-      headers: { 'X-Shopify-Access-Token': token || '', 'Content-Type': 'application/json' },
-    });
+    if (!shop || !token) {
+      return res.status(500).json({ ok: false, error: 'Missing SHOPIFY_SHOP / SHOPIFY_ADMIN_TOKEN' });
+    }
+
+    const r = await fetch(
+      `https://${shop}.myshopify.com/admin/api/${v}/products.json?limit=5&fields=id,title,updated_at,handle`,
+      { headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' } }
+    );
+
+    if (!r.ok) {
+      const txt = await r.text();
+      return res.status(500).json({ ok: false, error: `Shopify: ${txt}` });
+    }
+
     const pj = await r.json();
     const products = (pj.products || []).map((p: any) => ({
-      id: p.id, title: p.title, updated_at: p.updated_at, handle: p.handle,
+      id: p.id,
+      title: p.title,
+      updated_at: p.updated_at,
+      handle: p.handle,
     }));
 
-    res.status(200).json({
+    return res.status(200).json({
       ok: true,
       metrics: {
         openai_generations_30d: genCount,
@@ -47,8 +57,6 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
       },
     });
   } catch (e: any) {
-    res.status(500).json({ ok: false, error: e?.message || 'metrics error' });
+    return res.status(500).json({ ok: false, error: e?.message || 'metrics error' });
   }
 }
-
-
