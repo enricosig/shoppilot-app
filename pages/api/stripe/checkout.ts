@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 
-// Non passiamo apiVersion: Stripe userà quella dell'account ed evitiamo errori TS
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -23,3 +22,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || 'stripe error' });
   }
 }
+
