@@ -31,6 +31,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ ok: false, error: `Shopify: ${txt}` });
     }
 
+import { supabaseAdmin } from '@/lib/supabaseServer';
+// ...
+try {
+  const supa = supabaseAdmin();
+  await supa.from('events').insert({ kind: 'publish' });
+} catch {}
+
+    
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: e?.message || 'error' });
