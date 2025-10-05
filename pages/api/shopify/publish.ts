@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '@/lib/supabaseServer';
+import { supabaseAdmin } from '../../../lib/supabaseServer';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!shop || !token)
       return res.status(500).json({ ok: false, error: 'Missing Shopify env' });
 
-    // ✅ Supporta sia JSON string (curl) che oggetto (Next.js)
+    // Supporta JSON string o oggetto
     const body =
       typeof req.body === 'string'
         ? JSON.parse(req.body || '{}')
@@ -23,10 +23,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .json({ ok: false, error: 'Missing productId/description' });
     }
 
-    // 🔹 Costruisci URL API Shopify
     const url = `https://${shop}.myshopify.com/admin/api/${version}/products/${productId}.json`;
 
-    // 🔹 Esegui PUT verso Shopify
     const r = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -45,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .json({ ok: false, error: `Shopify: ${txt}` });
     }
 
-    // ✅ Traccia evento in Supabase (publish)
+    // ✅ Traccia evento su Supabase
     try {
       const supa = supabaseAdmin();
       await supa.from('events').insert({ kind: 'publish' });
@@ -53,7 +51,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('⚠️ Supabase tracking failed:', err);
     }
 
-    // ✅ Risposta OK
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     console.error('❌ Publish error:', e);
