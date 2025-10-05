@@ -1,21 +1,26 @@
-// lib/db.ts — versione per Supabase con 'pg'
+// lib/db.ts – client PG per Supabase
 import { Pool } from 'pg';
 
-const connectionString =
+let conn =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_PRISMA_URL ||
   process.env.POSTGRES_URL;
 
-if (!connectionString) {
+if (!conn) {
   throw new Error('Missing DATABASE_URL / POSTGRES_PRISMA_URL / POSTGRES_URL');
 }
 
+// forza sslmode=require se non presente
+if (!/sslmode=/i.test(conn)) {
+  conn += (conn.includes('?') ? '&' : '?') + 'sslmode=require';
+}
+
 export const pool = new Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false }, // necessario su Supabase
+  connectionString: conn,
+  // su Supabase è necessario per evitare "self-signed certificate"
+  ssl: { rejectUnauthorized: false },
 });
 
-// mini helper tipo `sql` compatibile con il nostro uso
 export async function sql(strings: TemplateStringsArray, ...values: any[]) {
   const text = strings.reduce(
     (acc, s, i) => acc + s + (i < values.length ? `$${i + 1}` : ''),
@@ -26,7 +31,6 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]) {
 }
 
 export async function ensureSchema() {
-  // Supabase ha pgcrypto disponibile -> gen_random_uuid()
   await pool.query(`create extension if not exists pgcrypto;`);
   await pool.query(`
     create table if not exists events (
