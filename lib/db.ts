@@ -1,5 +1,9 @@
-// lib/db.ts – client PG per Supabase
+// lib/db.ts — Supabase via 'pg' con TLS no-verify
 import { Pool } from 'pg';
+
+// Ultima rete di sicurezza — disattiva la verifica TLS a livello di processo
+process.env.PGSSLMODE = process.env.PGSSLMODE || 'no-verify';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 let conn =
   process.env.DATABASE_URL ||
@@ -10,17 +14,18 @@ if (!conn) {
   throw new Error('Missing DATABASE_URL / POSTGRES_PRISMA_URL / POSTGRES_URL');
 }
 
-// forza sslmode=require se non presente
+// Assicura sslmode=no-verify o require
 if (!/sslmode=/i.test(conn)) {
-  conn += (conn.includes('?') ? '&' : '?') + 'sslmode=require';
+  conn += (conn.includes('?') ? '&' : '?') + 'sslmode=no-verify';
 }
 
 export const pool = new Pool({
   connectionString: conn,
-  // su Supabase è necessario per evitare "self-signed certificate"
+  // Disabilita la verifica del certificato (necessario con CA self-signed)
   ssl: { rejectUnauthorized: false },
 });
 
+// Helper tipo `sql`
 export async function sql(strings: TemplateStringsArray, ...values: any[]) {
   const text = strings.reduce(
     (acc, s, i) => acc + s + (i < values.length ? `$${i + 1}` : ''),
