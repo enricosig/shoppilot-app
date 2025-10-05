@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabaseAnon } from '@/lib/supabaseServer';
+import { supabaseAdmin } from '../../../lib/supabaseServer';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion) || '2023-10-16',
