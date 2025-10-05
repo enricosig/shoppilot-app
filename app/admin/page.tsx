@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import KpiCard from '@/components/KpiCard';
-import AreaSpark from '@/components/AreaSpark';
+import AreaSpark from '../../components/AreaSpark';
+import KpiCard from '../../components/KpiCard';
 
 type DailyPoint = { date: string; value: number };
 type Metrics = {
