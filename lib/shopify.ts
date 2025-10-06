@@ -1,31 +1,36 @@
-﻿// lib/shopify.ts
-const SHOP = process.env.SHOPIFY_SHOP!;
+﻿const SHOP = process.env.SHOPIFY_SHOP!;
 const TOKEN = process.env.SHOPIFY_ADMIN_TOKEN!;
-const API_VERSION = process.env.SHOPIFY_API_VERSION || '2025-01';
+const API_VERSION = process.env.SHOPIFY_API_VERSION || "2025-01";
 
-if (!SHOP || !TOKEN) throw new Error('Missing Shopify env');
+if (!SHOP || !TOKEN) throw new Error("Missing Shopify env");
 
 const base = `https://${SHOP}/admin/api/${API_VERSION}`;
 
-export async function shopifyGet<T>(path: string) {
+/**
+ * REST: GET wrapper
+ */
+export async function shopifyGet<T = any>(path: string): Promise<T> {
   const r = await fetch(`${base}${path}`, {
     headers: {
-      'X-Shopify-Access-Token': TOKEN,
-      'Content-Type': 'application/json',
+      "X-Shopify-Access-Token": TOKEN,
+      "Content-Type": "application/json",
     },
-    cache: 'no-store',
+    cache: "no-store",
     next: { revalidate: 0 },
   });
   if (!r.ok) throw new Error(`Shopify GET ${path} ${r.status}`);
   return (await r.json()) as T;
 }
 
-export async function shopifyPut<T>(path: string, body: any) {
+/**
+ * REST: PUT wrapper
+ */
+export async function shopifyPut<T = any>(path: string, body: any): Promise<T> {
   const r = await fetch(`${base}${path}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'X-Shopify-Access-Token': TOKEN,
-      'Content-Type': 'application/json',
+      "X-Shopify-Access-Token": TOKEN,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -36,30 +41,45 @@ export async function shopifyPut<T>(path: string, body: any) {
   return (await r.json()) as T;
 }
 
-/** Chiamata GraphQL Admin */
-export async function shopifyGraphQL<T>(query: string, variables?: Record<string, any>) {
+/**
+ * GraphQL: POST wrapper (Admin API)
+ */
+export async function shopifyGraphQL<T = any>(
+  query: string,
+  variables?: Record<string, any>
+): Promise<T> {
   const r = await fetch(`${base}/graphql.json`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'X-Shopify-Access-Token': TOKEN,
-      'Content-Type': 'application/json',
+      "X-Shopify-Access-Token": TOKEN,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ query, variables }),
   });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`Shopify GQL ${r.status}: ${txt}`);
+  }
   const j = await r.json();
-  if (!r.ok || j.errors) {
-    const msg = j.errors ? JSON.stringify(j.errors) : r.statusText;
-    throw new Error(`Shopify GraphQL error: ${msg}`);
+  if (j.errors) {
+    throw new Error(`Shopify GQL errors: ${JSON.stringify(j.errors)}`);
   }
   return j.data as T;
 }
 
-/** Converte gid://shopify/Product/123456 → "123456" */
-export function gidToId(gid: string): string {
-  const parts = gid?.split('/') ?? [];
-  return parts[parts.length - 1] || gid;
+/**
+ * Utility: converte gid://shopify/Product/123456789 -> 123456789
+ */
+export function gidToId(gid: string): number {
+  const last = gid?.split("/")?.pop();
+  const n = Number(last);
+  if (!Number.isFinite(n)) throw new Error(`Invalid GID: ${gid}`);
+  return n;
 }
 
+/**
+ * Tipo prodotto (shape REST /products/:id.json)
+ */
 export type ShopifyProduct = {
   product: {
     id: number;
