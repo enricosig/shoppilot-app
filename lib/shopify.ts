@@ -13,15 +13,14 @@ export async function shopifyGet<T>(path: string) {
       'X-Shopify-Access-Token': TOKEN,
       'Content-Type': 'application/json',
     },
-    // Usa SOLO uno dei due per evitare il warning di Next:
+    // usa uno solo tra cache o revalidate: no-store evita warning
     cache: 'no-store',
-    // rimosso: next: { revalidate: 0 },
   });
   if (!r.ok) throw new Error(`Shopify GET ${path} ${r.status}`);
   return (await r.json()) as T;
 }
 
-export async function shopifyPut<T>(path: string, body: any) {
+export async function shopifyPut<T = any>(path: string, body: any) {
   const r = await fetch(`${base}${path}`, {
     method: 'PUT',
     headers: {
@@ -37,7 +36,22 @@ export async function shopifyPut<T>(path: string, body: any) {
   return (await r.json()) as T;
 }
 
-// --- opzionale: GraphQL e conversione GID→ID già usati in /api/products/search ---
+// ✅ Type usato dagli endpoint REST
+export type ShopifyProduct = {
+  product: {
+    id: number;
+    title: string;
+    body_html: string | null;
+    tags?: string;
+    handle: string;
+    vendor?: string;
+    product_type?: string;
+    variants: Array<{ id: number; price: string }>;
+    images: Array<{ id: number; src: string }>;
+  };
+};
+
+// ✅ Helper GraphQL per ricerche/filtri avanzati
 export async function shopifyGraphQL<T>(query: string, variables?: Record<string, any>) {
   const r = await fetch(`https://${SHOP}/admin/api/${API_VERSION}/graphql.json`, {
     method: 'POST',
@@ -45,7 +59,7 @@ export async function shopifyGraphQL<T>(query: string, variables?: Record<string
       'X-Shopify-Access-Token': TOKEN,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({ query, variables: variables ?? {} }),
     cache: 'no-store',
   });
   if (!r.ok) {
@@ -59,8 +73,8 @@ export async function shopifyGraphQL<T>(query: string, variables?: Record<string
   return data.data as T;
 }
 
+// ✅ Converte gid://shopify/Product/1234567890 -> 1234567890
 export function gidToId(gid: string): string {
-  // es: gid://shopify/Product/123456789 -> 123456789
-  const m = gid?.match(/\/(\d+)$/);
-  return m ? m[1] : gid;
+  const parts = gid.split('/');
+  return parts[parts.length - 1];
 }
