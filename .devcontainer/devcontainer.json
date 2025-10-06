@@ -1,0 +1,30 @@
+{
+  "name": "Shoppilot App",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "corepack enable && npm ci || npm i",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.eol": "\n",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "prisma.prisma",
+        "github.copilot",
+        "eamodio.gitlens"
+      ]
+    }
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Next.js", "onAutoForward": "openBrowser" }
+  },
+  "remoteUser": "node"
+}
