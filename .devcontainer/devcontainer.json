@@ -1,34 +1,26 @@
 {
-  "name": "Shoppilot App",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
-
-  "postCreateCommand": "corepack enable && npm ci || npm i",
-
+  "name": "shoppilot-app",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "version": "latest" }
+  },
   "customizations": {
     "vscode": {
-      "settings": {
-        "editor.formatOnSave": true,
-        "files.eol": "\n",
-        "terminal.integrated.defaultProfile.linux": "bash"
-      },
       "extensions": [
-        "dbaeumer.vscode-eslint",
+        "streetsidesoftware.code-spell-checker",
         "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss",
-        "prisma.prisma",
-        "github.copilot",
-        "eamodio.gitlens"
+        "dbaeumer.vscode-eslint",
+        "bmewburn.vscode-intelephense-client"
       ]
     }
   },
-
+  "remoteEnv": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "postCreateCommand": "corepack enable && npm ci && npx vercel --version || true",
   "forwardPorts": [3000],
   "portsAttributes": {
-    "3000": {
-      "label": "Next.js",
-      "onAutoForward": "openBrowser"
-    }
-  },
-
-  "remoteUser": "node"
+    "3000": { "label": "Next.js" }
+  }
 }
